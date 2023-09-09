@@ -2,6 +2,8 @@
 
 Data Cleaning in SQL Queries using SQLite
 
+link to dataset: https://github.com/AlexTheAnalyst/PortfolioProjects/blob/main/Nashville%20Housing%20Data%20for%20Data%20Cleaning.xlsx
+
 */
 ------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -33,234 +35,464 @@ SET SaleDate = SUBSTR(SaleDate, instr(SaleDate, ',') + 2) || '-' ||
          substr(SaleDate, 0, instr(SaleDate, ',')),
          instr(substr(SaleDate, 0, instr(SaleDate, ',')), ' ')+1
          ))
-
-------------------------------------------------------------------------------------------------------------------------------------------------
--- Populate PropertyAddress Data 
-
-SELECT *
-FROM
-	Nashville_Housing
-ORDER by 
-	ParcelID
-	
---
-
-SELECT
-	a.UniqueID,
-	a.PropertyAddress,
-	b.UniqueID,
-	b.PropertyAddress,
-	coalesce(a.PropertyAddress,b.PropertyAddress) 
-FROM
-	Nashville_Housing as a
-	JOIN Nashville_Housing as b
-	on a.ParcelID = b.ParcelID
-	AND a.UniqueID &lt;&gt; b.UniqueID
-WHERE a.PropertyAddress is NULL
-
---
-
-UPDATE Nashville_Housing AS t1
-SET PropertyAddress = (
-    SELECT t2.PropertyAddress
-    FROM Nashville_Housing AS t2
-    WHERE t2.ParcelID = t1.ParcelID
-      AND t2.PropertyAddress IS NOT NULL
-    LIMIT 1
-)
-WHERE t1.PropertyAddress IS NULL;
-
---
-
-SELECT *
-FROM
-	Nashville_Housing
-WHERE
-	PropertyAddress is NULL
-	
-------------------------------------------------------------------------------------------------------------------------------------------------
--- Breaking address into individual colums
-
-SELECT PropertyAddress
-FROM
-	Nashville_Housing
-
---
-
-SELECT 
-	substr(PropertyAddress,1,instr(PropertyAddress,',')-1) as Address,
-	substr(PropertyAddress,instr(PropertyAddress,',')+1,length(PropertyAddress)) as City
-FROM
-	Nashville_Housing
-
---
-
-ALTER TABLE Nashville_Housing
-ADD COLUMN 
-	PropertySplitAddress TEXT;
-
-ALTER TABLE Nashville_Housing
-ADD COLUMN 
-	PropertySplitCity TEXT;
-	
-UPDATE Nashville_Housing
-SET PropertySplitAddress = substr(PropertyAddress,1,instr(PropertyAddress,',')-1)
-
-UPDATE Nashville_Housing
-SET PropertySplitCity = substr(PropertyAddress,instr(PropertyAddress,',')+1,length(PropertyAddress))
-
---
-
-SELECT *
-FROM
-	Nashville_Housing
-	
---
-
-SELECT
-	OwnerAddress,
-	substr(OwnerAddress,1,instr(OwnerAddress,',')-1) as OwnerAddressSplitted,
-	substr(OwnerAddress,instr(OwnerAddress,',')+1,instr(substr(OwnerAddress,instr(OwnerAddress,',')+1),',')-1) as OwnerAddressCity,
-	substr(OwnerAddress,(instr(OwnerAddress,',')+1)+(instr(substr(OwnerAddress,instr(OwnerAddress,',')+1),',')+1)) as OwnerAddressState
-FROM 
-	Nashville_Housing
-	
---
-
-ALTER TABLE Nashville_Housing
-ADD COLUMN 
-	OwnerSplitAddress TEXT;
-
-ALTER TABLE Nashville_Housing
-ADD COLUMN 
-	OwnerSplitCity TEXT;
-
-ALTER TABLE Nashville_Housing
-ADD COLUMN 
-	OwnerSplitState TEXT;
-	
-UPDATE Nashville_Housing
-SET OwnerSplitAddress = substr(OwnerAddress,1,instr(OwnerAddress,',')-1)
-
-UPDATE Nashville_Housing
-SET OwnerSplitCity = substr(OwnerAddress,instr(OwnerAddress,',')+1,instr(substr(OwnerAddress,instr(OwnerAddress,',')+1),',')-1)
-
-UPDATE Nashville_Housing
-SET OwnerSplitState = substr(OwnerAddress,(instr(OwnerAddress,',')+1)+(instr(substr(OwnerAddress,instr(OwnerAddress,',')+1),',')+1))
-
---
-
-SELECT
-	PropertySplitAddress,
-	PropertySplitCity,
-	OwnerSplitAddress,
-	OwnerSplitCity,
-	OwnerSplitState
-FROM
-	Nashville_Housing
-	
-------------------------------------------------------------------------------------------------------------------------------------------------
--- Change Y and N to Yes and No in SoldAsVacant column
-
-SELECT 
-	DISTINCT SoldAsVacant,
-	count(SoldAsVacant)
-FROM Nashville_Housing
-GROUP by SoldAsVacant
-
---
-
-SELECT 
-	SoldAsVacant,
-	CASE WHEN SoldAsVacant = 'Y' THEN 'Yes'
-	WHEN SoldAsVacant = 'N' THEN 'No'
-	ELSE SoldAsVacant END
-FROM
-	Nashville_Housing
-
---
-
-UPDATE Nashville_Housing
-SET SoldAsVacant = CASE WHEN SoldAsVacant = 'Y' THEN 'Yes'
-	WHEN SoldAsVacant = 'N' THEN 'No'
-	ELSE SoldAsVacant END
-
-------------------------------------------------------------------------------------------------------------------------------------------------
--- Remove Duplicates
-WITH rownumcte as (
-SELECT *,
-	row_number() OVER(
-	PARTITION by 
-		ParcelID,
-		PropertyAddress,
-		SalePrice,
-		SaleDate,
-		LegalReference
-		ORDER by 	
-			UniqueID
-			) row_num 
-FROM
-	Nashville_Housing
-ORDER by 
-	ParcelID
-)
-DELETE
-FROM Nashville_Housing
-where UniqueID in (SELECT UniqueID from  rownumcte where row_num &gt; 1)
-
---
-
-WITH rownumcte as (
-SELECT *,
-	row_number() OVER(
-	PARTITION by 
-		ParcelID,
-		PropertyAddress,
-		SalePrice,
-		SaleDate,
-		LegalReference
-		ORDER by 	
-			UniqueID
-			) row_num 
-FROM
-	Nashville_Housing
-ORDER by 
-	ParcelID
-)
-SELECT *
-FROM rownumcte
-where row_num &gt; 1
-
-------------------------------------------------------------------------------------------------------------------------------------------------
--- Delete unused columns
-
-CREATE TABLE new_table AS
-SELECT 
-	UniqueID,
-	ParcelID,
-	LandUse,
-	SaleDate,
-	SalePrice,
-	LegalReference,
-	SoldAsVacant,
-	OwnerName,
-	Acreage,
-	LandValue,
-	BuildingValue,
-	TotalValue,
-	YearBuilt,
-	Bedrooms,
-	FullBath,
-	HalfBath,
-	PropertySplitAddress,
-	PropertySplitCity,
-	OwnerSplitAddress,
-	OwnerSplitCity,
-	OwnerSplitState	
-FROM Nashville_Housing;
-
-DROP TABLE Nashville_Housing
-
-ALTER TABLE new_table
-RENAME to Nashville_Housing
+
+
+------------------------------------------------------------------------------------------------------------------------------------------------
+
+-- Populate PropertyAddress Data 
+
+
+
+SELECT *
+
+FROM
+
+	Nashville_Housing
+
+ORDER by 
+
+	ParcelID
+
+	
+
+--
+
+
+
+SELECT
+
+	a.UniqueID,
+
+	a.PropertyAddress,
+
+	b.UniqueID,
+
+	b.PropertyAddress,
+
+	coalesce(a.PropertyAddress,b.PropertyAddress) 
+
+FROM
+
+	Nashville_Housing as a
+
+	JOIN Nashville_Housing as b
+
+	on a.ParcelID = b.ParcelID
+
+	AND a.UniqueID &lt;&gt; b.UniqueID
+
+WHERE a.PropertyAddress is NULL
+
+
+
+--
+
+
+
+UPDATE Nashville_Housing AS t1
+
+SET PropertyAddress = (
+
+    SELECT t2.PropertyAddress
+
+    FROM Nashville_Housing AS t2
+
+    WHERE t2.ParcelID = t1.ParcelID
+
+      AND t2.PropertyAddress IS NOT NULL
+
+    LIMIT 1
+
+)
+
+WHERE t1.PropertyAddress IS NULL;
+
+
+
+--
+
+
+
+SELECT *
+
+FROM
+
+	Nashville_Housing
+
+WHERE
+
+	PropertyAddress is NULL
+
+	
+
+------------------------------------------------------------------------------------------------------------------------------------------------
+
+-- Breaking address into individual colums
+
+
+
+SELECT PropertyAddress
+
+FROM
+
+	Nashville_Housing
+
+
+
+--
+
+
+
+SELECT 
+
+	substr(PropertyAddress,1,instr(PropertyAddress,',')-1) as Address,
+
+	substr(PropertyAddress,instr(PropertyAddress,',')+1,length(PropertyAddress)) as City
+
+FROM
+
+	Nashville_Housing
+
+
+
+--
+
+
+
+ALTER TABLE Nashville_Housing
+
+ADD COLUMN 
+
+	PropertySplitAddress TEXT;
+
+
+
+ALTER TABLE Nashville_Housing
+
+ADD COLUMN 
+
+	PropertySplitCity TEXT;
+
+	
+
+UPDATE Nashville_Housing
+
+SET PropertySplitAddress = substr(PropertyAddress,1,instr(PropertyAddress,',')-1)
+
+
+
+UPDATE Nashville_Housing
+
+SET PropertySplitCity = substr(PropertyAddress,instr(PropertyAddress,',')+1,length(PropertyAddress))
+
+
+
+--
+
+
+
+SELECT *
+
+FROM
+
+	Nashville_Housing
+
+	
+
+--
+
+
+
+SELECT
+
+	OwnerAddress,
+
+	substr(OwnerAddress,1,instr(OwnerAddress,',')-1) as OwnerAddressSplitted,
+
+	substr(OwnerAddress,instr(OwnerAddress,',')+1,instr(substr(OwnerAddress,instr(OwnerAddress,',')+1),',')-1) as OwnerAddressCity,
+
+	substr(OwnerAddress,(instr(OwnerAddress,',')+1)+(instr(substr(OwnerAddress,instr(OwnerAddress,',')+1),',')+1)) as OwnerAddressState
+
+FROM 
+
+	Nashville_Housing
+
+	
+
+--
+
+
+
+ALTER TABLE Nashville_Housing
+
+ADD COLUMN 
+
+	OwnerSplitAddress TEXT;
+
+
+
+ALTER TABLE Nashville_Housing
+
+ADD COLUMN 
+
+	OwnerSplitCity TEXT;
+
+
+
+ALTER TABLE Nashville_Housing
+
+ADD COLUMN 
+
+	OwnerSplitState TEXT;
+
+	
+
+UPDATE Nashville_Housing
+
+SET OwnerSplitAddress = substr(OwnerAddress,1,instr(OwnerAddress,',')-1)
+
+
+
+UPDATE Nashville_Housing
+
+SET OwnerSplitCity = substr(OwnerAddress,instr(OwnerAddress,',')+1,instr(substr(OwnerAddress,instr(OwnerAddress,',')+1),',')-1)
+
+
+
+UPDATE Nashville_Housing
+
+SET OwnerSplitState = substr(OwnerAddress,(instr(OwnerAddress,',')+1)+(instr(substr(OwnerAddress,instr(OwnerAddress,',')+1),',')+1))
+
+
+
+--
+
+
+
+SELECT
+
+	PropertySplitAddress,
+
+	PropertySplitCity,
+
+	OwnerSplitAddress,
+
+	OwnerSplitCity,
+
+	OwnerSplitState
+
+FROM
+
+	Nashville_Housing
+
+	
+
+------------------------------------------------------------------------------------------------------------------------------------------------
+
+-- Change Y and N to Yes and No in SoldAsVacant column
+
+
+
+SELECT 
+
+	DISTINCT SoldAsVacant,
+
+	count(SoldAsVacant)
+
+FROM Nashville_Housing
+
+GROUP by SoldAsVacant
+
+
+
+--
+
+
+
+SELECT 
+
+	SoldAsVacant,
+
+	CASE WHEN SoldAsVacant = 'Y' THEN 'Yes'
+
+	WHEN SoldAsVacant = 'N' THEN 'No'
+
+	ELSE SoldAsVacant END
+
+FROM
+
+	Nashville_Housing
+
+
+
+--
+
+
+
+UPDATE Nashville_Housing
+
+SET SoldAsVacant = CASE WHEN SoldAsVacant = 'Y' THEN 'Yes'
+
+	WHEN SoldAsVacant = 'N' THEN 'No'
+
+	ELSE SoldAsVacant END
+
+
+
+------------------------------------------------------------------------------------------------------------------------------------------------
+
+-- Remove Duplicates
+
+WITH rownumcte as (
+
+SELECT *,
+
+	row_number() OVER(
+
+	PARTITION by 
+
+		ParcelID,
+
+		PropertyAddress,
+
+		SalePrice,
+
+		SaleDate,
+
+		LegalReference
+
+		ORDER by 	
+
+			UniqueID
+
+			) row_num 
+
+FROM
+
+	Nashville_Housing
+
+ORDER by 
+
+	ParcelID
+
+)
+
+DELETE
+
+FROM Nashville_Housing
+
+where UniqueID in (SELECT UniqueID from  rownumcte where row_num &gt; 1)
+
+
+
+--
+
+
+
+WITH rownumcte as (
+
+SELECT *,
+
+	row_number() OVER(
+
+	PARTITION by 
+
+		ParcelID,
+
+		PropertyAddress,
+
+		SalePrice,
+
+		SaleDate,
+
+		LegalReference
+
+		ORDER by 	
+
+			UniqueID
+
+			) row_num 
+
+FROM
+
+	Nashville_Housing
+
+ORDER by 
+
+	ParcelID
+
+)
+
+SELECT *
+
+FROM rownumcte
+
+where row_num &gt; 1
+
+
+
+------------------------------------------------------------------------------------------------------------------------------------------------
+
+-- Delete unused columns
+
+
+
+CREATE TABLE new_table AS
+
+SELECT 
+
+	UniqueID,
+
+	ParcelID,
+
+	LandUse,
+
+	SaleDate,
+
+	SalePrice,
+
+	LegalReference,
+
+	SoldAsVacant,
+
+	OwnerName,
+
+	Acreage,
+
+	LandValue,
+
+	BuildingValue,
+
+	TotalValue,
+
+	YearBuilt,
+
+	Bedrooms,
+
+	FullBath,
+
+	HalfBath,
+
+	PropertySplitAddress,
+
+	PropertySplitCity,
+
+	OwnerSplitAddress,
+
+	OwnerSplitCity,
+
+	OwnerSplitState	
+
+FROM Nashville_Housing;
+
+
+
+DROP TABLE Nashville_Housing
+
+
+
+ALTER TABLE new_table
+
+RENAME to Nashville_Housing
+
 </sql><current_tab id="0"/></tab_sql></sqlb_project>
