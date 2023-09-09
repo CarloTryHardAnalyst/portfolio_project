@@ -1,0 +1,266 @@
+<?xml version="1.0" encoding="UTF-8"?><sqlb_project><db path="C:/Users/John Carlo/OneDrive/Documents/Personal Documents/Data Analytics Portfolio/Housing Data.db" readonly="0" foreign_keys="1" case_sensitive_like="0" temp_store="0" wal_autocheckpoint="1000" synchronous="2"/><attached/><window><main_tabs open="structure browser pragmas query" current="3"/></window><tab_structure><column_width id="0" width="300"/><column_width id="1" width="0"/><column_width id="2" width="125"/><column_width id="3" width="3279"/><column_width id="4" width="0"/><expanded_item id="0" parent="1"/><expanded_item id="0" parent="0"/><expanded_item id="1" parent="1"/><expanded_item id="2" parent="1"/><expanded_item id="3" parent="1"/></tab_structure><tab_browse><current_table name="4,17:mainNashville_Housing"/><default_encoding codec=""/><browse_table_settings><table schema="main" name="Nashville_Housing" show_row_id="0" encoding="" plot_x_axis="" unlock_view_pk="_rowid_"><sort/><column_widths><column index="1" value="92"/><column index="2" value="137"/><column index="3" value="226"/><column index="4" value="300"/><column index="5" value="91"/><column index="6" value="88"/><column index="7" value="148"/><column index="8" value="127"/><column index="9" value="300"/><column index="10" value="300"/><column index="11" value="79"/><column index="12" value="238"/><column index="13" value="99"/><column index="14" value="128"/><column index="15" value="100"/><column index="16" value="88"/><column index="17" value="97"/><column index="18" value="81"/><column index="19" value="85"/></column_widths><filter_values/><conditional_formats/><row_id_formats/><display_formats/><hidden_columns/><plot_y_axes/><global_filter/></table></browse_table_settings></tab_browse><tab_sql><sql name="SQL 1">/*
+
+Data Cleaning in SQL Queries using SQLite
+
+*/
+------------------------------------------------------------------------------------------------------------------------------------------------
+
+SELECT * 
+FROM Nashville_Housing
+
+------------------------------------------------------------------------------------------------------------------------------------------------
+-- Standardize SaleDate Column
+
+UPDATE Nashville_Housing
+SET SaleDate = SUBSTR(SaleDate, instr(SaleDate, ',') + 2) || '-' ||
+        printf('%02d',
+         CASE substr(SaleDate, 0, instr(SaleDate, ' '))
+             WHEN 'January' THEN 1
+             WHEN 'February' THEN 2
+             WHEN 'March' THEN 3
+             WHEN 'April' THEN 4
+             WHEN 'May' THEN 5
+             WHEN 'June' THEN 6
+             WHEN 'July' THEN 7
+             WHEN 'August' THEN 8
+             WHEN 'September' THEN 9
+             WHEN 'October' THEN 10
+             WHEN 'November' THEN 11
+             WHEN 'December' THEN 12
+          END)  || '-' ||
+        printf('%02d',
+        substr(
+         substr(SaleDate, 0, instr(SaleDate, ',')),
+         instr(substr(SaleDate, 0, instr(SaleDate, ',')), ' ')+1
+         ))
+
+------------------------------------------------------------------------------------------------------------------------------------------------
+-- Populate PropertyAddress Data 
+
+SELECT *
+FROM
+	Nashville_Housing
+ORDER by 
+	ParcelID
+	
+--
+
+SELECT
+	a.UniqueID,
+	a.PropertyAddress,
+	b.UniqueID,
+	b.PropertyAddress,
+	coalesce(a.PropertyAddress,b.PropertyAddress) 
+FROM
+	Nashville_Housing as a
+	JOIN Nashville_Housing as b
+	on a.ParcelID = b.ParcelID
+	AND a.UniqueID &lt;&gt; b.UniqueID
+WHERE a.PropertyAddress is NULL
+
+--
+
+UPDATE Nashville_Housing AS t1
+SET PropertyAddress = (
+    SELECT t2.PropertyAddress
+    FROM Nashville_Housing AS t2
+    WHERE t2.ParcelID = t1.ParcelID
+      AND t2.PropertyAddress IS NOT NULL
+    LIMIT 1
+)
+WHERE t1.PropertyAddress IS NULL;
+
+--
+
+SELECT *
+FROM
+	Nashville_Housing
+WHERE
+	PropertyAddress is NULL
+	
+------------------------------------------------------------------------------------------------------------------------------------------------
+-- Breaking address into individual colums
+
+SELECT PropertyAddress
+FROM
+	Nashville_Housing
+
+--
+
+SELECT 
+	substr(PropertyAddress,1,instr(PropertyAddress,',')-1) as Address,
+	substr(PropertyAddress,instr(PropertyAddress,',')+1,length(PropertyAddress)) as City
+FROM
+	Nashville_Housing
+
+--
+
+ALTER TABLE Nashville_Housing
+ADD COLUMN 
+	PropertySplitAddress TEXT;
+
+ALTER TABLE Nashville_Housing
+ADD COLUMN 
+	PropertySplitCity TEXT;
+	
+UPDATE Nashville_Housing
+SET PropertySplitAddress = substr(PropertyAddress,1,instr(PropertyAddress,',')-1)
+
+UPDATE Nashville_Housing
+SET PropertySplitCity = substr(PropertyAddress,instr(PropertyAddress,',')+1,length(PropertyAddress))
+
+--
+
+SELECT *
+FROM
+	Nashville_Housing
+	
+--
+
+SELECT
+	OwnerAddress,
+	substr(OwnerAddress,1,instr(OwnerAddress,',')-1) as OwnerAddressSplitted,
+	substr(OwnerAddress,instr(OwnerAddress,',')+1,instr(substr(OwnerAddress,instr(OwnerAddress,',')+1),',')-1) as OwnerAddressCity,
+	substr(OwnerAddress,(instr(OwnerAddress,',')+1)+(instr(substr(OwnerAddress,instr(OwnerAddress,',')+1),',')+1)) as OwnerAddressState
+FROM 
+	Nashville_Housing
+	
+--
+
+ALTER TABLE Nashville_Housing
+ADD COLUMN 
+	OwnerSplitAddress TEXT;
+
+ALTER TABLE Nashville_Housing
+ADD COLUMN 
+	OwnerSplitCity TEXT;
+
+ALTER TABLE Nashville_Housing
+ADD COLUMN 
+	OwnerSplitState TEXT;
+	
+UPDATE Nashville_Housing
+SET OwnerSplitAddress = substr(OwnerAddress,1,instr(OwnerAddress,',')-1)
+
+UPDATE Nashville_Housing
+SET OwnerSplitCity = substr(OwnerAddress,instr(OwnerAddress,',')+1,instr(substr(OwnerAddress,instr(OwnerAddress,',')+1),',')-1)
+
+UPDATE Nashville_Housing
+SET OwnerSplitState = substr(OwnerAddress,(instr(OwnerAddress,',')+1)+(instr(substr(OwnerAddress,instr(OwnerAddress,',')+1),',')+1))
+
+--
+
+SELECT
+	PropertySplitAddress,
+	PropertySplitCity,
+	OwnerSplitAddress,
+	OwnerSplitCity,
+	OwnerSplitState
+FROM
+	Nashville_Housing
+	
+------------------------------------------------------------------------------------------------------------------------------------------------
+-- Change Y and N to Yes and No in SoldAsVacant column
+
+SELECT 
+	DISTINCT SoldAsVacant,
+	count(SoldAsVacant)
+FROM Nashville_Housing
+GROUP by SoldAsVacant
+
+--
+
+SELECT 
+	SoldAsVacant,
+	CASE WHEN SoldAsVacant = 'Y' THEN 'Yes'
+	WHEN SoldAsVacant = 'N' THEN 'No'
+	ELSE SoldAsVacant END
+FROM
+	Nashville_Housing
+
+--
+
+UPDATE Nashville_Housing
+SET SoldAsVacant = CASE WHEN SoldAsVacant = 'Y' THEN 'Yes'
+	WHEN SoldAsVacant = 'N' THEN 'No'
+	ELSE SoldAsVacant END
+
+------------------------------------------------------------------------------------------------------------------------------------------------
+-- Remove Duplicates
+WITH rownumcte as (
+SELECT *,
+	row_number() OVER(
+	PARTITION by 
+		ParcelID,
+		PropertyAddress,
+		SalePrice,
+		SaleDate,
+		LegalReference
+		ORDER by 	
+			UniqueID
+			) row_num 
+FROM
+	Nashville_Housing
+ORDER by 
+	ParcelID
+)
+DELETE
+FROM Nashville_Housing
+where UniqueID in (SELECT UniqueID from  rownumcte where row_num &gt; 1)
+
+--
+
+WITH rownumcte as (
+SELECT *,
+	row_number() OVER(
+	PARTITION by 
+		ParcelID,
+		PropertyAddress,
+		SalePrice,
+		SaleDate,
+		LegalReference
+		ORDER by 	
+			UniqueID
+			) row_num 
+FROM
+	Nashville_Housing
+ORDER by 
+	ParcelID
+)
+SELECT *
+FROM rownumcte
+where row_num &gt; 1
+
+------------------------------------------------------------------------------------------------------------------------------------------------
+-- Delete unused columns
+
+CREATE TABLE new_table AS
+SELECT 
+	UniqueID,
+	ParcelID,
+	LandUse,
+	SaleDate,
+	SalePrice,
+	LegalReference,
+	SoldAsVacant,
+	OwnerName,
+	Acreage,
+	LandValue,
+	BuildingValue,
+	TotalValue,
+	YearBuilt,
+	Bedrooms,
+	FullBath,
+	HalfBath,
+	PropertySplitAddress,
+	PropertySplitCity,
+	OwnerSplitAddress,
+	OwnerSplitCity,
+	OwnerSplitState	
+FROM Nashville_Housing;
+
+DROP TABLE Nashville_Housing
+
+ALTER TABLE new_table
+RENAME to Nashville_Housing
+</sql><current_tab id="0"/></tab_sql></sqlb_project>
